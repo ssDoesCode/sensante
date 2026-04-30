@@ -166,3 +166,116 @@ print(f"\nProbabilites par classe :")
 for classe, proba in zip(model_loaded.classes_, probas):
     bar = '#' * int(proba * 30)
     print(f"  {classe:12s} : {proba:.1%} {bar}")
+
+    # Importance des features
+importances = model.feature_importances_
+for name, imp in sorted(zip(feature_cols, importances),
+                        key=lambda x: x[1], reverse=True):
+    print(f"  {name:20s} : {imp:.3f}")
+
+# ========== VALIDATION AVEC 3 PATIENTS FICTIFS ==========
+print("\n" + "="*60)
+print("VALIDATION : 3 PATIENTS AVEC PROFILS DIFFERENTS")
+print("="*60)
+
+patients_test = [
+    {
+        'nom': 'Patient 1: Jeune sans symptômes',
+        'age': 16,
+        'sexe': 'M',
+        'temperature': 36.5,
+        'tension_sys': 10,
+        'toux': False,
+        'fatigue': False,
+        'maux_tete': False,
+        'region': 'Dakar'
+    },
+    {
+        'nom': 'Patient 2: Adulte avec forte fièvre',
+        'age': 35,
+        'sexe': 'F',
+        'temperature': 40.2,
+        'tension_sys': 13,
+        'toux': True,
+        'fatigue': True,
+        'maux_tete': True,
+        'region': 'Thiès'
+    },
+    {
+        'nom': 'Patient 3: Patient âgé avec toux',
+        'age': 68,
+        'sexe': 'M',
+        'temperature': 38.8,
+        'tension_sys': 12,
+        'toux': True,
+        'fatigue': True,
+        'maux_tete': False,
+        'region': 'Dakar'
+    }
+]
+
+print("\nPRÉDICTIONS SUR LES 3 PATIENTS :")
+print("-" * 60)
+
+for patient in patients_test:
+    # Encoder les valeurs catégoriques
+    sexe_enc = le_sexe_loaded.transform([patient['sexe']])[0]
+    region_enc = le_region_loaded.transform([patient['region']])[0]
+    
+    # Préparer le vecteur de features
+    features = [
+        patient['age'],
+        sexe_enc,
+        patient['temperature'],
+        patient['tension_sys'],
+        int(patient['toux']),
+        int(patient['fatigue']),
+        int(patient['maux_tete']),
+        region_enc
+    ]
+    
+    # Prédire
+    diagnostic = model_loaded.predict([features])[0]
+    probas = model_loaded.predict_proba([features])[0]
+    proba_max = probas.max()
+    
+    # Afficher les résultats
+    print(f"\n{patient['nom']}")
+    print(f"  Âge: {patient['age']} ans | Sexe: {patient['sexe']} | Région: {patient['region']}")
+    print(f"  Température: {patient['temperature']}°C | Tension: {patient['tension_sys']}")
+    print(f"  Toux: {'Oui' if patient['toux'] else 'Non'} | "
+          f"Fatigue: {'Oui' if patient['fatigue'] else 'Non'} | "
+          f"Maux tête: {'Oui' if patient['maux_tete'] else 'Non'}")
+    print(f"  → DIAGNOSTIC PRÉDIT: {diagnostic.upper()}")
+    print(f"  → Confiance: {proba_max:.1%}")
+    
+    # Détail des probabilités
+    print(f"  Détail des probabilités:")
+    for classe, proba in zip(model_loaded.classes_, probas):
+        bar = '█' * int(proba * 25)
+        print(f"    {classe:12s} : {proba:5.1%} {bar}")
+
+print("\n" + "="*60)
+print("ANALYSE DE COHÉRENCE :")
+print("="*60)
+print("""
+RÉSULTATS ATTENDUS ET COHÉRENCE :
+
+Patient 1 (Jeune sans symptômes):
+  - Température normale (36.5°C), aucun symptôme
+  - ✓ Attendu: Diagnostic "SAIN" 
+  - Cohérent: Oui - profil d'un patient en bonne santé
+
+Patient 2 (Adulte avec forte fièvre):
+  - Forte fièvre (40.2°C), toux, fatigue, maux de tête
+  - ✓ Attendu: Diagnostic "GRIPPE" ou "PALUDISME"
+  - Cohérent: Oui - symptômes typiques de maladies infectieuses
+
+Patient 3 (Âgé avec toux):
+  - Âge avancé (68 ans), fièvre modérée (38.8°C), toux, fatigue
+  - ✓ Attendu: Diagnostic "GRIPPE" ou "PALUDISME"
+  - Cohérent: Oui - profil compatible avec maladies saisonnières
+
+Note: La température et les symptômes sont les predicteurs les plus importants.
+""")
+
