@@ -104,7 +104,7 @@
 
         </div>
 
-        <!-- Historique des consultations (Exercice 2) -->
+        <!-- Historique des consultations -->
         <div id="historique-section" class="mt-8 hidden">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Historique des consultations</h2>
             <div class="bg-white rounded-xl shadow-md overflow-hidden">
@@ -128,13 +128,12 @@
 
     <!-- Footer -->
     <footer class="text-center text-gray-400 text-sm py-4">
-        SenSante v0.3 - ESP/UCAD - L2 GLSI 2026
+        SenSante v0.4 - ESP/UCAD - L2 GLSI 2026
     </footer>
 
     <script>
         const API_URL = "http://localhost:8000";
 
-        // Exercice 2 : tableau historique
         const historique = [];
 
         async function diagnostiquer() {
@@ -170,8 +169,6 @@
 
                 const resultat = await response.json();
                 afficherResultat(resultat);
-
-                // Exercice 2 : ajouter a l'historique
                 ajouterHistorique(patient, resultat);
 
             } catch (error) {
@@ -205,6 +202,7 @@
 
             const c = couleurs[r.diagnostic] || couleurs["sain"];
             const pct = Math.round(r.probabilite * 100);
+
             const section = document.getElementById("result-section");
 
             section.innerHTML = `
@@ -227,13 +225,66 @@
                         <span class="${c.badge} text-white text-xs px-2 py-1 rounded-full">${r.confiance}</span>
                         <span class="text-sm text-gray-600">confiance</span>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="bg-gray-50 rounded-lg p-3 mb-2">
                         <p class="text-sm text-gray-700">${r.message}</p>
+                        <p class="text-xs text-gray-400 mt-1 italic">Ce pre-diagnostic ne remplace pas un avis medical.</p>
+                    </div>
+                    <!-- NOUVEAU : zone explication LLM -->
+                    <div id="explication-zone">
+                        <div class="mt-4 bg-purple-50 rounded-lg p-4 border border-purple-200">
+                            <p class="text-sm text-purple-600 font-medium mb-2">Explication (Llama 3)</p>
+                            <p class="text-gray-500 text-sm animate-pulse">Generation en cours...</p>
+                        </div>
                     </div>
                 </div>`;
+
+            // Appeler /explain automatiquement
+            demanderExplication(r);
         }
 
-        // Exercice 2 : ajouter et afficher l'historique
+        // NOUVEAU : appel a /explain
+        async function demanderExplication(r) {
+            const explainData = {
+                diagnostic: r.diagnostic,
+                probabilite: r.probabilite,
+                age: parseInt(document.getElementById("age").value),
+                sexe: document.getElementById("sexe").value,
+                temperature: parseFloat(document.getElementById("temperature").value),
+                region: document.getElementById("region").value
+            };
+
+            try {
+                const response = await fetch(API_URL + "/explain", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(explainData)
+                });
+
+                const zone = document.getElementById("explication-zone");
+
+                if (response.ok) {
+                    const result = await response.json();
+                    zone.innerHTML = `
+                        <div class="mt-4 bg-purple-50 rounded-lg p-4 border border-purple-200">
+                            <p class="text-sm text-purple-600 font-medium mb-2">Explication (Llama 3)</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">${result.explication}</p>
+                        </div>`;
+                } else {
+                    zone.innerHTML = `
+                        <div class="mt-4 bg-gray-50 rounded-lg p-3">
+                            <p class="text-gray-400 text-sm">Explication non disponible.</p>
+                        </div>`;
+                }
+
+            } catch (error) {
+                const zone = document.getElementById("explication-zone");
+                zone.innerHTML = `
+                    <div class="mt-4 bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Explication non disponible.</p>
+                    </div>`;
+            }
+        }
+
         function ajouterHistorique(patient, resultat) {
             historique.unshift({
                 age: patient.age,
@@ -243,7 +294,6 @@
             });
 
             if (historique.length > 5) historique.pop();
-
             afficherHistorique();
         }
 
