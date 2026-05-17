@@ -73,3 +73,32 @@ response2 = client.chat.completions.create(
 )
 
 print(response2.choices[0].message.content)
+# --- Exercice 2 : tester differentes temperatures ---
+print("\n=== Exercice 2 : impact de la temperature ===")
+
+user_test = (
+    "Patient : F, 28 ans, region Dakar\n"
+    "Temperature : 39.5 C\n"
+    "Diagnostic du modele : paludisme (probabilite 72%)\n"
+    "Explique ce resultat au patient."
+)
+
+system_test = (
+    "Tu es un assistant medical senegalais. "
+    "Explique le diagnostic en francais simple. "
+    "Maximum 3 phrases. "
+    "Ne fais JAMAIS de diagnostic toi-meme."
+)
+
+for temp in [0.0, 0.5, 1.0]:
+    r = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_test},
+            {"role": "user", "content": user_test}
+        ],
+        max_tokens=200,
+        temperature=temp
+    )
+    print(f"\n--- temperature={temp} ---")
+    print(r.choices[0].message.content)
